@@ -116,15 +116,11 @@ export default function DashboardPage() {
                   <span className="text-3xl sm:text-4xl lg:text-[44px] font-bold tracking-tight text-white leading-none">
                     {formatCurrency(stats?.totalRevenue)}
                   </span>
-                  <span className="bg-[#22252c] text-gray-300 border border-white/10 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                    New
-                  </span>
+
                 </div>
               )}
 
-              <p className="text-xs text-gray-400 mt-1 font-normal">
-                Compared with the previous period of the same length
-              </p>
+
             </div>
 
             {/* Right Graph Inside This Section */}

@@ -11,7 +11,7 @@ import { Plus, X } from 'lucide-react'
 const PROGRESS_OPTIONS = ['Order Placed', 'In Progress', 'Ready', 'Delivered', 'Cancelled']
 const PRIORITY_OPTIONS = ['No priority', 'Low', 'Medium', 'High', 'Urgent']
 
-export default function NewOrderModal({ isOpen, onClose, onCreated, products = [] }) {
+export default function NewOrderModal({ isOpen, onClose, onCreated, products = [], initialCustomer = null }) {
   const availableProducts = (products && products.length > 2) ? products : DJ_CATALOG_PRODUCTS
   const { user, profile } = useAuth()
   const [teamMembers, setTeamMembers] = useState([])
@@ -33,12 +33,20 @@ export default function NewOrderModal({ isOpen, onClose, onCreated, products = [
   useEffect(() => {
     if (isOpen) {
       teamService.getAll().then(setTeamMembers).catch(() => {})
+      if (initialCustomer) {
+        setForm(prev => ({
+          ...prev,
+          customer_name: initialCustomer.name || '',
+          customer_email: initialCustomer.email || '',
+          customer_phone: initialCustomer.phone || '',
+        }))
+      }
     } else {
       setForm({ customer_name: '', customer_email: '', customer_phone: '', due_date: '', assigned_to: '', notes: '', items: [{ ...emptyItem }] })
       setErrors({})
       setError('')
     }
-  }, [isOpen])
+  }, [isOpen, initialCustomer])
 
   if (!isOpen) return null
 

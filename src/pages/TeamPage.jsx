@@ -22,7 +22,7 @@ export default function TeamPage() {
 
   const [form, setForm] = useState({
     name: '',
-    role: 'Designer',
+    role: 'Staff',
     email: '',
     phone: '',
   })
@@ -70,7 +70,7 @@ export default function TeamPage() {
       const created = await teamService.create(form)
       setMembers(prev => [created, ...prev])
       setShowAddModal(false)
-      setForm({ name: '', role: 'Designer', email: '', phone: '' })
+      setForm({ name: '', role: 'Staff', email: '', phone: '' })
       showFeedback(`Added ${created.name} to team`)
     } catch (err) {
       alert('Failed to add team member: ' + err.message)
@@ -122,21 +122,21 @@ export default function TeamPage() {
             <p className="text-2xl font-bold text-gray-900 mt-1">{members.length}</p>
           </div>
           <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-xs">
-            <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Designers</p>
-            <p className="text-2xl font-bold text-pink-600 mt-1">
-              {members.filter(m => m.role === 'Designer').length}
+            <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Admins</p>
+            <p className="text-2xl font-bold text-purple-600 mt-1">
+              {members.filter(m => m.role === 'Admin').length}
             </p>
           </div>
           <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-xs">
-            <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Production</p>
-            <p className="text-2xl font-bold text-amber-600 mt-1">
-              {members.filter(m => m.role === 'Production').length}
+            <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Staff</p>
+            <p className="text-2xl font-bold text-blue-600 mt-1">
+              {members.filter(m => m.role === 'Staff').length}
             </p>
           </div>
           <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-xs">
-            <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Dispatch / Staff</p>
-            <p className="text-2xl font-bold text-emerald-600 mt-1">
-              {members.filter(m => m.role === 'Dispatch').length}
+            <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Other</p>
+            <p className="text-2xl font-bold text-gray-700 mt-1">
+              {members.filter(m => m.role === 'Other').length}
             </p>
           </div>
         </div>

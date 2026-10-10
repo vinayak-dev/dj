@@ -1,20 +1,18 @@
 // DJ Arts & Crafts Team Service with persistence
 
-const STORAGE_KEY = 'h4b_mock_team_members'
+const STORAGE_KEY = 'h4b_mock_team_members_v2'
 
 export const ROLES = [
-  { id: 'Owner', label: 'Owner', desc: 'Full store access & management', color: 'bg-purple-50 text-purple-700 border-purple-200' },
-  { id: 'Manager', label: 'Store Manager', desc: 'Manage orders, customers & catalog', color: 'bg-blue-50 text-blue-700 border-blue-200' },
-  { id: 'Designer', label: 'Graphic Designer', desc: 'Personalization prints, preview approvals', color: 'bg-pink-50 text-pink-700 border-pink-200' },
-  { id: 'Production', label: 'Production Specialist', desc: 'Laser engraving, manufacturing & QC', color: 'bg-amber-50 text-amber-700 border-amber-200' },
-  { id: 'Dispatch', label: 'Packaging & Dispatch', desc: 'Packing, shipping labels & tracking', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  { id: 'Admin', label: 'Admin', desc: 'Full administration & store access', color: 'bg-purple-50 text-purple-700 border-purple-200' },
+  { id: 'Staff', label: 'Staff', desc: 'Standard staff & operational access', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+  { id: 'Other', label: 'Other', desc: 'Custom role or external collaborator', color: 'bg-gray-100 text-gray-700 border-gray-200' },
 ]
 
 const DEFAULT_TEAM = [
   {
     id: 'team-1',
     name: 'DJ Arts Admin',
-    role: 'Owner',
+    role: 'Admin',
     email: 'admin@djartsandcrafts.com',
     phone: '+91 98765 00001',
     status: 'Active',
@@ -24,7 +22,7 @@ const DEFAULT_TEAM = [
   {
     id: 'team-2',
     name: 'Pooja Verma',
-    role: 'Designer',
+    role: 'Staff',
     email: 'pooja@djartsandcrafts.com',
     phone: '+91 98765 00002',
     status: 'Active',
@@ -34,7 +32,7 @@ const DEFAULT_TEAM = [
   {
     id: 'team-3',
     name: 'Aakash Singh',
-    role: 'Production',
+    role: 'Staff',
     email: 'aakash@djartsandcrafts.com',
     phone: '+91 98765 00003',
     status: 'Active',
@@ -44,7 +42,7 @@ const DEFAULT_TEAM = [
   {
     id: 'team-4',
     name: 'Ravi Kumar',
-    role: 'Dispatch',
+    role: 'Other',
     email: 'ravi@djartsandcrafts.com',
     phone: '+91 98765 00004',
     status: 'Active',
@@ -53,10 +51,24 @@ const DEFAULT_TEAM = [
   },
 ]
 
+function normalizeRole(role) {
+  if (role === 'Admin' || role === 'Owner' || role === 'Manager') return 'Admin'
+  if (role === 'Other') return 'Other'
+  return 'Staff'
+}
+
 function getStoredTeam() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map(m => ({
+          ...m,
+          role: normalizeRole(m.role)
+        }))
+      }
+    }
   } catch (e) {
     console.error('Failed reading team members from storage', e)
   }
@@ -82,7 +94,7 @@ export const teamService = {
     const newMember = {
       id: `team-${Date.now()}`,
       name: memberData.name.trim(),
-      role: memberData.role || 'Staff',
+      role: normalizeRole(memberData.role || 'Staff'),
       email: memberData.email ? memberData.email.trim() : '',
       phone: memberData.phone ? memberData.phone.trim() : '',
       status: memberData.status || 'Active',
@@ -96,10 +108,11 @@ export const teamService = {
 
   async updateRole(id, newRole) {
     const current = getStoredTeam()
+    const cleanRole = normalizeRole(newRole)
     let updatedMember = null
     const updated = current.map(m => {
       if (m.id === id) {
-        updatedMember = { ...m, role: newRole }
+        updatedMember = { ...m, role: cleanRole }
         return updatedMember
       }
       return m
@@ -113,7 +126,11 @@ export const teamService = {
     let updatedMember = null
     const updated = current.map(m => {
       if (m.id === id) {
-        updatedMember = { ...m, ...updates }
+        updatedMember = {
+          ...m,
+          ...updates,
+          role: updates.role ? normalizeRole(updates.role) : m.role
+        }
         return updatedMember
       }
       return m

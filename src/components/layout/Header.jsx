@@ -1,4 +1,4 @@
-import { Bell, Grid3X3 } from 'lucide-react'
+import { Grid3X3 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
 export default function Header({ title, subtitle, actions, icon }) {
@@ -23,15 +23,6 @@ export default function Header({ title, subtitle, actions, icon }) {
 
       <div className="flex items-center gap-2">
         {actions}
-        {/* Notifications */}
-        <div className="relative">
-          <button className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors">
-            <Bell size={14} className="text-gray-600" />
-          </button>
-          <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-            1
-          </span>
-        </div>
       </div>
     </header>
   )
