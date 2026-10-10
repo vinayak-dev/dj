@@ -274,8 +274,17 @@ Stage: ${order.progress || 'Order Placed'}`
 
             {/* Team filter */}
             <div className="relative">
-              <select className="appearance-none text-sm border border-gray-200 rounded-lg px-3 py-1.5 pr-7 outline-none focus:border-gray-400 bg-white text-gray-700">
-                <option>All team</option>
+              <select
+                value={teamFilter}
+                onChange={e => setTeamFilter(e.target.value)}
+                className="appearance-none text-sm border border-gray-200 rounded-lg px-3 py-1.5 pr-7 outline-none focus:border-gray-400 bg-white text-gray-700"
+              >
+                <option value="All team">All team</option>
+                {teamMembers.map(m => (
+                  <option key={m.id} value={m.name}>
+                    {m.name} ({m.role})
+                  </option>
+                ))}
               </select>
               <ChevronDown size={13} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             </div>
