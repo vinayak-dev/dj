@@ -20,12 +20,12 @@ export default function Modal({ isOpen, onClose, title, children, maxWidth = 'ma
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4"
       style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
       onClick={(e) => { if (e.target === overlayRef.current) onClose() }}
     >
-      <div className={`bg-white rounded-xl shadow-2xl w-full ${maxWidth} max-h-[90vh] overflow-y-auto`}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <div className={`bg-white rounded-xl shadow-2xl w-full ${maxWidth} max-h-[92vh] overflow-y-auto`}>
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-gray-100">
           <h2 className="text-base font-semibold text-gray-900">{title}</h2>
           <button
             onClick={onClose}
@@ -34,7 +34,7 @@ export default function Modal({ isOpen, onClose, title, children, maxWidth = 'ma
             <X size={14} />
           </button>
         </div>
-        <div className="px-6 py-4">{children}</div>
+        <div className="px-4 sm:px-6 py-4 sm:py-5">{children}</div>
       </div>
     </div>
   )

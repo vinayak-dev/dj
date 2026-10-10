@@ -72,13 +72,17 @@ export default function DashboardPage() {
 
   return (
     <AppLayout>
+      <Header
+        title="Dashboard"
+        subtitle="Store overview & performance"
+      />
 
-      <main className="flex-1 overflow-y-auto p-6 space-y-5">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-5">
         {/* Period filter */}
         <div className="relative inline-block">
           <button
             onClick={() => setShowPeriodMenu(!showPeriodMenu)}
-            className="flex items-center gap-2 text-sm text-gray-600 bg-white border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-2 text-sm text-gray-600 bg-white border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors shadow-2xs"
           >
             <span className="text-gray-400 text-xs">📅</span>
             {selectedPeriod.label}
@@ -101,8 +105,8 @@ export default function DashboardPage() {
         </div>
 
         {/* Revenue card with Integrated Graph (matching reference UI) */}
-        <div className="bg-[#111317] rounded-2xl p-6 sm:p-7 text-white relative overflow-hidden shadow-xl border border-gray-800/80">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="bg-[#111317] rounded-2xl p-5 sm:p-7 text-white relative overflow-hidden shadow-xl border border-gray-800/80">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 sm:gap-6">
             {/* Left Content */}
             <div className="flex flex-col gap-1.5 z-10">
               <p className="text-[11px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wider">
@@ -113,18 +117,15 @@ export default function DashboardPage() {
                 <div className="mt-2"><Spinner className="border-gray-600 border-t-white" /></div>
               ) : (
                 <div className="flex items-center gap-3 mt-0.5">
-                  <span className="text-3xl sm:text-4xl lg:text-[44px] font-bold tracking-tight text-white leading-none">
+                  <span className="text-2xl sm:text-4xl lg:text-[44px] font-bold tracking-tight text-white leading-none">
                     {formatCurrency(stats?.totalRevenue)}
                   </span>
-
                 </div>
               )}
-
-
             </div>
 
             {/* Right Graph Inside This Section */}
-            <div className="w-full md:w-[260px] lg:w-[340px] flex items-center justify-end relative">
+            <div className="w-full sm:w-[240px] md:w-[280px] lg:w-[340px] flex items-center justify-end relative pt-2 sm:pt-0">
               <svg
                 viewBox="0 0 220 56"
                 width="100%"

@@ -55,20 +55,20 @@ export default function AddCustomerModal({ isOpen, onClose, onCreated }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4"
       style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
       onClick={e => { if (e.currentTarget === e.target) handleClose() }}
     >
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[92vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-gray-100">
           <h2 className="text-base font-semibold text-gray-900">Add customer</h2>
           <button onClick={handleClose} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400">
             <X size={14} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4" noValidate>
+        <form onSubmit={handleSubmit} className="px-4 sm:px-6 py-4 sm:py-5 space-y-4" noValidate>
           {apiError && (
             <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{apiError}</p>
           )}
@@ -80,7 +80,7 @@ export default function AddCustomerModal({ isOpen, onClose, onCreated }) {
             onChange={update('name')}
           />
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               label="Phone"
               type="tel"

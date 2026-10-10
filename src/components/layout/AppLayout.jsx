@@ -1,6 +1,7 @@
 import Sidebar from './Sidebar'
+import { LayoutProvider } from '../../contexts/LayoutContext'
 
-export default function AppLayout({ children }) {
+function AppLayoutInner({ children }) {
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
       <Sidebar />
@@ -8,5 +9,13 @@ export default function AppLayout({ children }) {
         {children}
       </div>
     </div>
+  )
+}
+
+export default function AppLayout({ children }) {
+  return (
+    <LayoutProvider>
+      <AppLayoutInner>{children}</AppLayoutInner>
+    </LayoutProvider>
   )
 }

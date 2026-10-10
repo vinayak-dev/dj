@@ -409,7 +409,7 @@ Stage: ${order.progress || 'Order Placed'}`
                 })}
               </div>
             ) : (
-              <table className="w-full text-sm">
+              <table className="w-full text-sm min-w-[850px]">
                 <thead className="sticky top-0 bg-white border-b border-gray-100 z-10">
                   <tr>
                     <th className="w-8 px-4 py-3">

@@ -119,7 +119,7 @@ export default function ProductsPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto p-6 space-y-4">
+      <div className="flex-1 overflow-auto p-4 sm:p-6 space-y-4">
         {/* Category Pills, Search & View Switcher */}
         <div className="flex items-center justify-between gap-3 flex-wrap bg-white p-3 rounded-xl border border-gray-100 shadow-xs">
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
@@ -187,7 +187,7 @@ export default function ProductsPage() {
           /* Table List View */
           <div className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-xs">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm min-w-[650px]">
                 <thead className="bg-gray-50/75 border-b border-gray-100">
                   <tr>
                     <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-4 py-3">Product Name</th>

@@ -77,7 +77,7 @@ export default function AnalyticsPage() {
         subtitle="See revenue, order and customer trends over time"
       />
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 sm:space-y-6">
         {/* Controls */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-2">
@@ -191,7 +191,7 @@ export default function AnalyticsPage() {
               </div>
 
               {/* Bar visualization */}
-              <div className="h-48 flex items-end gap-6 pt-6 pb-2 border-b border-gray-100">
+              <div className="h-48 flex items-end gap-3 sm:gap-6 pt-6 pb-2 border-b border-gray-100 overflow-x-auto">
                 {monthsData.map((m, idx) => {
                   const heightPercent = Math.max(12, Math.round((m.revenue / maxRevenue) * 100))
                   return (

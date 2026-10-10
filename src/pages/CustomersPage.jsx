@@ -176,7 +176,7 @@ export default function CustomersPage() {
                 <p className="text-xs mt-1">Click "Add customer" to get started.</p>
               </div>
             ) : (
-              <table className="w-full text-sm">
+              <table className="w-full text-sm min-w-[680px]">
                 <thead className="sticky top-0 bg-white border-b border-gray-100 z-10">
                   <tr>
                     <th className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-3">Customer</th>

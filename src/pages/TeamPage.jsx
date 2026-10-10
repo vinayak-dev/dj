@@ -173,7 +173,7 @@ export default function TeamPage() {
                 <p className="text-xs mt-1">Click "Add Member" to add your first team colleague.</p>
               </div>
             ) : (
-              <table className="w-full text-sm">
+              <table className="w-full text-sm min-w-[650px]">
                 <thead className="bg-gray-50/80 border-b border-gray-100 text-left">
                   <tr>
                     <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3.5">Name</th>
@@ -287,9 +287,9 @@ export default function TeamPage() {
 
       {/* Add Team Member Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-gray-100">
               <div>
                 <h3 className="font-bold text-sm text-gray-900">Add Team Member</h3>
                 <p className="text-xs text-gray-400 mt-0.5">Invite a team member and assign their role</p>
@@ -302,7 +302,7 @@ export default function TeamPage() {
               </button>
             </div>
 
-            <form onSubmit={handleAddMember} className="p-6 space-y-4">
+            <form onSubmit={handleAddMember} className="p-4 sm:p-6 space-y-4">
               <Input
                 label="Name"
                 placeholder="Team member name"
@@ -326,7 +326,7 @@ export default function TeamPage() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Input
                   label="Email"
                   type="email"

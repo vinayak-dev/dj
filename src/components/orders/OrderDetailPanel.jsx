@@ -158,39 +158,52 @@ export default function OrderDetailPanel({ order: initialOrder, onClose, onUpdat
 
   return (
     <div className="w-full md:w-[340px] lg:w-[380px] flex-shrink-0 border-l border-gray-200 bg-white flex flex-col h-full overflow-hidden">
+      {/* Mobile Back Bar */}
+      <div className="md:hidden flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs">
+        <button
+          onClick={onClose}
+          className="flex items-center gap-1.5 text-gray-700 font-semibold hover:text-gray-900 py-1"
+        >
+          <span>←</span> Back to orders
+        </button>
+        <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600">
+          <X size={15} />
+        </button>
+      </div>
+
       {/* Panel header */}
-      <div className="flex items-start justify-between px-5 pt-4 pb-3 border-b border-gray-100">
-        <div>
+      <div className="flex items-start justify-between px-4 sm:px-5 pt-3 sm:pt-4 pb-3 border-b border-gray-100 gap-2">
+        <div className="min-w-0 flex-1">
           <p className="text-[10px] text-gray-400 font-mono">{order.order_no}</p>
-          <h2 className="text-base font-semibold text-gray-900 mt-0.5">{order.customer?.name || 'Unnamed'}</h2>
-          <div className="flex items-center gap-2 mt-1.5">
+          <h2 className="text-base font-semibold text-gray-900 mt-0.5 truncate">{order.customer?.name || 'Unnamed'}</h2>
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
             <Badge variant="order-placed">
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block mr-1" />
               {order.progress || 'Order Placed'}
             </Badge>
           </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <Button size="sm" variant="secondary" className="text-xs gap-1">
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <Button size="sm" variant="secondary" className="text-xs gap-1 hidden xs:inline-flex">
             <MessageCircle size={12} /> Message
           </Button>
           <Button size="sm" variant="secondary" className="text-xs gap-1"
             onClick={() => navigator.clipboard.writeText(window.location.href + '?order=' + order.id)}>
-            🔗 Copy link
+            🔗 <span className="hidden xs:inline">Copy link</span>
           </Button>
-          <button onClick={onClose} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 ml-1">
+          <button onClick={onClose} className="hidden md:flex w-6 h-6 items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 ml-1">
             <X size={14} />
           </button>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-100 px-2">
+      <div className="flex border-b border-gray-100 px-2 overflow-x-auto no-scrollbar">
         {TABS.map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-3 py-2.5 text-xs font-medium transition-colors border-b-2 -mb-px ${
+            className={`px-3 py-2.5 text-xs font-medium transition-colors border-b-2 -mb-px whitespace-nowrap ${
               tab === t
                 ? 'border-gray-900 text-gray-900'
                 : 'border-transparent text-gray-500 hover:text-gray-700'

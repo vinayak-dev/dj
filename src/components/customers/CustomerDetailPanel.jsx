@@ -54,8 +54,21 @@ export default function CustomerDetailPanel({
 
   return (
     <aside className="w-full md:w-[440px] lg:w-[480px] h-full bg-white border-l border-gray-200 flex flex-col flex-shrink-0 z-20 shadow-xl overflow-hidden">
+      {/* Mobile Back Bar */}
+      <div className="md:hidden flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs">
+        <button
+          onClick={onClose}
+          className="flex items-center gap-1.5 text-gray-700 font-semibold hover:text-gray-900 py-1"
+        >
+          <span>←</span> Back to customers
+        </button>
+        <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600">
+          <X size={15} />
+        </button>
+      </div>
+
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+      <div className="flex items-center justify-between px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-800 font-bold text-sm flex items-center justify-center flex-shrink-0 shadow-2xs">
             {initials}
