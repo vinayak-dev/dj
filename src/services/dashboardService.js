@@ -2,7 +2,48 @@ import { supabase } from '../lib/supabase'
 
 export const dashboardService = {
   async getStats(userId, months = 6) {
-    if (userId?.startsWith('admin-') || !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes('placeholder')) {
+    const since = new Date()
+    since.setMonth(since.getMonth() - months)
+    const sinceStr = since.toISOString()
+
+    try {
+      const [ordersRes, paymentsRes, customersRes] = await Promise.all([
+        supabase
+          .from('orders')
+          .select('id, created_at, progress, due_date')
+          .gte('created_at', sinceStr),
+        supabase
+          .from('payments')
+          .select('base_price, advance_collected, is_full_paid, order_id'),
+        supabase
+          .from('customers')
+          .select('id'),
+      ])
+
+      const orders = ordersRes.data || []
+      const payments = paymentsRes.data || []
+
+      const today = new Date().toDateString()
+      const todaysOrders = orders.filter(o => new Date(o.created_at).toDateString() === today)
+      const activeOrders = orders.filter(o => !['Delivered', 'Cancelled'].includes(o.progress))
+      const totalRevenue = payments.reduce((sum, p) => sum + (Number(p.base_price) || 0), 0)
+      const advanceCollected = payments.reduce((sum, p) => sum + (Number(p.advance_collected) || 0), 0)
+      const pendingPayments = payments.reduce((sum, p) => {
+        const bal = (Number(p.base_price) || 0) - (Number(p.advance_collected) || 0)
+        return sum + (bal > 0 ? bal : 0)
+      }, 0)
+
+      return {
+        totalRevenue,
+        todaysOrders: todaysOrders.length,
+        activeOrders: activeOrders.length,
+        pendingPayments,
+        netPayout: advanceCollected,
+        addOnRevenue: 0,
+        totalCustomers: (customersRes.data || []).length,
+      }
+    } catch (err) {
+      console.warn('Supabase dashboard stats failed, using local fallback:', err)
       const storedOrders = localStorage.getItem('h4b_mock_orders')
       let orders = []
       if (storedOrders) {
@@ -43,57 +84,6 @@ export const dashboardService = {
         addOnRevenue: 0,
         totalCustomers: customerCount,
       }
-    }
-
-    const since = new Date()
-    since.setMonth(since.getMonth() - months)
-    const sinceStr = since.toISOString()
-
-    const [ordersRes, paymentsRes, customersRes] = await Promise.all([
-      supabase
-        .from('orders')
-        .select('id, created_at, progress, due_date')
-        .eq('user_id', userId)
-        .gte('created_at', sinceStr),
-      supabase
-        .from('payments')
-        .select('base_price, advance_collected, is_full_paid, order_id')
-        .in(
-          'order_id',
-          (await supabase
-            .from('orders')
-            .select('id')
-            .eq('user_id', userId)
-            .gte('created_at', sinceStr)
-            .then(r => (r.data || []).map(o => o.id)))
-        ),
-      supabase
-        .from('customers')
-        .select('id')
-        .eq('user_id', userId),
-    ])
-
-    const orders = ordersRes.data || []
-    const payments = paymentsRes.data || []
-
-    const today = new Date().toDateString()
-    const todaysOrders = orders.filter(o => new Date(o.created_at).toDateString() === today)
-    const activeOrders = orders.filter(o => !['Delivered', 'Cancelled'].includes(o.progress))
-    const totalRevenue = payments.reduce((sum, p) => sum + (p.base_price || 0), 0)
-    const advanceCollected = payments.reduce((sum, p) => sum + (p.advance_collected || 0), 0)
-    const pendingPayments = payments.reduce((sum, p) => {
-      const bal = (p.base_price || 0) - (p.advance_collected || 0)
-      return sum + (bal > 0 ? bal : 0)
-    }, 0)
-
-    return {
-      totalRevenue,
-      todaysOrders: todaysOrders.length,
-      activeOrders: activeOrders.length,
-      pendingPayments,
-      netPayout: advanceCollected,
-      addOnRevenue: 0,
-      totalCustomers: (customersRes.data || []).length,
     }
   },
 }

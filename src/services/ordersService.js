@@ -33,74 +33,186 @@ const DEFAULT_DEMO_ORDERS = [
   },
 ]
 
-function getMockOrders() {
+function getLocalOrders() {
   const stored = localStorage.getItem('h4b_mock_orders')
   if (stored) {
-    try { return JSON.parse(stored) } catch (e) {}
+    try {
+      const parsed = JSON.parse(stored)
+      if (Array.isArray(parsed)) return parsed
+    } catch (e) {}
   }
-  localStorage.setItem('h4b_mock_orders', JSON.stringify(DEFAULT_DEMO_ORDERS))
   return DEFAULT_DEMO_ORDERS
 }
 
-function saveMockOrders(orders) {
-  localStorage.setItem('h4b_mock_orders', JSON.stringify(orders))
+function saveLocalOrders(orders) {
+  try {
+    localStorage.setItem('h4b_mock_orders', JSON.stringify(orders))
+  } catch (e) {}
+}
+
+function normalizeOrder(o) {
+  if (!o) return o
+  return {
+    ...o,
+    payment: Array.isArray(o.payment) ? (o.payment[0] || null) : (o.payment || null),
+    order_items: Array.isArray(o.order_items) ? o.order_items : []
+  }
 }
 
 export const ordersService = {
   async getAll(userId, filters = {}) {
-    if (userId?.startsWith('admin-') || !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes('placeholder')) {
-      let orders = getMockOrders()
+    try {
+      let query = supabase
+        .from('orders')
+        .select(`
+          *,
+          customer:customers(id, name, phone, email),
+          order_items(*, product:products(name)),
+          payment:payments(*)
+        `)
+        .order('created_at', { ascending: false })
+
+      if (filters.stage && filters.stage !== 'All stages' && filters.stage !== 'all') {
+        query = query.eq('progress', filters.stage)
+      }
+      if (filters.search) {
+        query = query.or(`order_no.ilike.%${filters.search}%`)
+      }
+
+      const { data, error } = await query
+      if (error) throw error
+
+      if (data && data.length > 0) {
+        const normalized = data.map(normalizeOrder)
+        saveLocalOrders(normalized)
+        return normalized
+      }
+
+      // If Supabase returned empty table, check if we have orders or return empty
+      return []
+    } catch (err) {
+      console.warn('Supabase query failed, using local cache:', err)
+      let orders = getLocalOrders()
       if (filters.stage && filters.stage !== 'All stages' && filters.stage !== 'all') {
         orders = orders.filter(o => o.progress === filters.stage)
       }
+      if (filters.search) {
+        const q = filters.search.toLowerCase()
+        orders = orders.filter(o => o.order_no?.toLowerCase().includes(q) || o.customer?.name?.toLowerCase().includes(q))
+      }
       return orders
     }
-
-    let query = supabase
-      .from('orders')
-      .select(`
-        *,
-        customer:customers(id, name, phone, email),
-        order_items(*, product:products(name)),
-        payment:payments(*)
-      `)
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-
-    if (filters.stage && filters.stage !== 'all') {
-      query = query.eq('progress', filters.stage)
-    }
-    if (filters.search) {
-      query = query.or(
-        `order_no.ilike.%${filters.search}%`
-      )
-    }
-
-    const { data, error } = await query
-    if (error) throw error
-    return data
   },
 
   async getById(id) {
-    const { data, error } = await supabase
-      .from('orders')
-      .select(`
-        *,
-        customer:customers(id, name, phone, email),
-        order_items(*, product:products(id, name, price)),
-        payment:payments(*)
-      `)
-      .eq('id', id)
-      .single()
-    if (error) throw error
-    return data
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          customer:customers(id, name, phone, email),
+          order_items(*, product:products(id, name, price)),
+          payment:payments(*)
+        `)
+        .eq('id', id)
+        .single()
+      if (error) throw error
+      return normalizeOrder(data)
+    } catch (err) {
+      console.warn('Supabase getById failed, using cache:', err)
+      const cached = getLocalOrders()
+      return cached.find(o => o.id === id) || null
+    }
   },
 
   async create(userId, orderData) {
-    if (userId?.startsWith('admin-') || !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes('placeholder')) {
-      const orders = getMockOrders()
-      const orderNo = `ORD-${String(orders.length + 55).padStart(3, '0')}`
-      const basePrice = orderData.items?.reduce((sum, i) => sum + i.qty * i.unit_price, 0) || 0
+    try {
+      // Generate order number based on count
+      const { count } = await supabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true })
+      
+      const orderCount = count || 0
+      const orderNo = orderData.order_no || `ORD-${String(orderCount + 56).padStart(3, '0')}`
+
+      // Create or find customer
+      let customerId = orderData.customer_id
+      if (!customerId && orderData.customer_name) {
+        const { data: existingCustomer } = await supabase
+          .from('customers')
+          .select('id')
+          .ilike('name', orderData.customer_name)
+          .maybeSingle()
+
+        if (existingCustomer) {
+          customerId = existingCustomer.id
+        } else {
+          const { data: newCustomer, error: cErr } = await supabase
+            .from('customers')
+            .insert({
+              name: orderData.customer_name,
+              email: orderData.customer_email || null,
+              phone: orderData.customer_phone || null,
+              source: 'Manual',
+            })
+            .select()
+            .single()
+          if (!cErr && newCustomer) {
+            customerId = newCustomer.id
+          }
+        }
+      }
+
+      // Insert order
+      const { data: order, error: orderErr } = await supabase
+        .from('orders')
+        .insert({
+          order_no: orderNo,
+          customer_id: customerId || null,
+          progress: orderData.progress || 'Order Placed',
+          priority: orderData.priority || 'No priority',
+          assigned_to: orderData.assigned_to || null,
+          due_date: orderData.due_date || null,
+          notes: orderData.notes || null,
+        })
+        .select()
+        .single()
+      if (orderErr) throw orderErr
+
+      // Insert order items
+      if (orderData.items?.length) {
+        const items = orderData.items.map(item => ({
+          order_id: order.id,
+          product_id: item.product_id || null,
+          product_name: item.product_name,
+          qty: Number(item.qty) || 1,
+          unit_price: Number(item.unit_price) || 0,
+        }))
+        const { error: itemErr } = await supabase.from('order_items').insert(items)
+        if (itemErr) throw itemErr
+      }
+
+      // Create payment record
+      const basePrice = orderData.items?.reduce((sum, i) => sum + (Number(i.qty) || 1) * (Number(i.unit_price) || 0), 0) || 0
+      const { error: payErr } = await supabase.from('payments').insert({
+        order_id: order.id,
+        base_price: basePrice,
+        advance_due: basePrice,
+        balance_due: 0,
+        advance_collected: basePrice,
+        is_full_paid: true,
+      })
+      if (payErr) throw payErr
+
+      const fullOrder = await ordersService.getById(order.id)
+      const cached = getLocalOrders()
+      saveLocalOrders([fullOrder, ...cached])
+      return fullOrder
+    } catch (err) {
+      console.error('Supabase create failed, falling back to local storage:', err)
+      const orders = getLocalOrders()
+      const orderNo = `ORD-${String(orders.length + 56).padStart(3, '0')}`
+      const basePrice = orderData.items?.reduce((sum, i) => sum + (Number(i.qty) || 1) * (Number(i.unit_price) || 0), 0) || 0
       const newOrder = {
         id: `ord-demo-${Date.now()}`,
         order_no: orderNo,
@@ -118,8 +230,8 @@ export const ordersService = {
         order_items: (orderData.items || []).map((it, idx) => ({
           id: `item-demo-${Date.now()}-${idx}`,
           product_name: it.product_name,
-          qty: it.qty,
-          unit_price: it.unit_price,
+          qty: Number(it.qty) || 1,
+          unit_price: Number(it.unit_price) || 0,
         })),
         payment: {
           base_price: basePrice,
@@ -130,93 +242,28 @@ export const ordersService = {
         },
       }
       const updatedList = [newOrder, ...orders]
-      saveMockOrders(updatedList)
+      saveLocalOrders(updatedList)
       return newOrder
     }
-
-    // Generate order number
-    const count = await supabase
-      .from('orders')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
-    const orderNo = `ORD-${String((count.count || 0) + 1).padStart(3, '0')}`
-
-    // Create or find customer
-    let customerId = orderData.customer_id
-    if (!customerId && orderData.customer_name) {
-      const { data: existingCustomer } = await supabase
-        .from('customers')
-        .select('id')
-        .eq('user_id', userId)
-        .ilike('name', orderData.customer_name)
-        .maybeSingle()
-
-      if (existingCustomer) {
-        customerId = existingCustomer.id
-      } else {
-        const { data: newCustomer, error: cErr } = await supabase
-          .from('customers')
-          .insert({
-            user_id: userId,
-            name: orderData.customer_name,
-            email: orderData.customer_email || null,
-            phone: orderData.customer_phone || null,
-            source: 'Manual',
-          })
-          .select()
-          .single()
-        if (cErr) throw cErr
-        customerId = newCustomer.id
-      }
-    }
-
-    const { data: order, error: orderErr } = await supabase
-      .from('orders')
-      .insert({
-        user_id: userId,
-        order_no: orderNo,
-        customer_id: customerId,
-        progress: 'Order Placed',
-        priority: 'No priority',
-        assigned_to: orderData.assigned_to || null,
-        due_date: orderData.due_date || null,
-        notes: orderData.notes || null,
-      })
-      .select()
-      .single()
-    if (orderErr) throw orderErr
-
-    // Insert order items
-    if (orderData.items?.length) {
-      const items = orderData.items.map(item => ({
-        order_id: order.id,
-        product_id: item.product_id || null,
-        product_name: item.product_name,
-        qty: item.qty,
-        unit_price: item.unit_price,
-      }))
-      const { error: itemErr } = await supabase.from('order_items').insert(items)
-      if (itemErr) throw itemErr
-    }
-
-    // Create payment record
-    const basePrice = orderData.items?.reduce((sum, i) => sum + i.qty * i.unit_price, 0) || 0
-    const { error: payErr } = await supabase.from('payments').insert({
-      order_id: order.id,
-      base_price: basePrice,
-      advance_due: basePrice,
-      balance_due: 0,
-      advance_collected: basePrice,
-      is_full_paid: true,
-    })
-    if (payErr) throw payErr
-
-    return order
   },
 
   async update(id, updates) {
-    if (id?.startsWith('ord-demo-') || !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes('placeholder')) {
-      const orders = getMockOrders()
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+      if (error) throw error
+
+      const cached = getLocalOrders()
+      const updatedList = cached.map(o => o.id === id ? { ...o, ...updates, ...data } : o)
+      saveLocalOrders(updatedList)
+      return data
+    } catch (err) {
+      console.warn('Update order Supabase error, falling back to local:', err)
+      const orders = getLocalOrders()
       let updatedOrder = null
       const updatedList = orders.map(o => {
         if (o.id === id) {
@@ -225,43 +272,48 @@ export const ordersService = {
         }
         return o
       })
-      saveMockOrders(updatedList)
+      saveLocalOrders(updatedList)
       return updatedOrder || updates
     }
-
-    const { data, error } = await supabase
-      .from('orders')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single()
-    if (error) throw error
-    return data
   },
 
   async delete(id) {
-    if (id?.startsWith('ord-demo-') || !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes('placeholder')) {
-      const orders = getMockOrders()
-      const updatedList = orders.filter(o => o.id !== id)
-      saveMockOrders(updatedList)
-      return
+    try {
+      await supabase.from('order_items').delete().eq('order_id', id)
+      await supabase.from('payments').delete().eq('order_id', id)
+      const { error } = await supabase.from('orders').delete().eq('id', id)
+      if (error) throw error
+    } catch (err) {
+      console.warn('Delete order Supabase error:', err)
     }
-
-    // Delete related items first
-    await supabase.from('order_items').delete().eq('order_id', id)
-    await supabase.from('payments').delete().eq('order_id', id)
-    const { error } = await supabase.from('orders').delete().eq('id', id)
-    if (error) throw error
+    const orders = getLocalOrders()
+    const updatedList = orders.filter(o => o.id !== id)
+    saveLocalOrders(updatedList)
   },
 
   async addOrderItem(orderId, item) {
-    if (orderId?.startsWith('ord-demo-') || !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes('placeholder')) {
-      const orders = getMockOrders()
+    try {
+      const newItemData = {
+        order_id: orderId,
+        product_name: item.product_name,
+        qty: Number(item.qty) || 1,
+        unit_price: Number(item.unit_price) || 0,
+      }
+      const { data, error } = await supabase
+        .from('order_items')
+        .insert(newItemData)
+        .select()
+        .single()
+      if (error) throw error
+      return data
+    } catch (err) {
+      console.warn('addOrderItem Supabase error:', err)
+      const orders = getLocalOrders()
       const newItem = {
         id: `item-demo-${Date.now()}`,
         product_name: item.product_name,
-        qty: item.qty,
-        unit_price: item.unit_price,
+        qty: Number(item.qty) || 1,
+        unit_price: Number(item.unit_price) || 0,
       }
       const updatedList = orders.map(o => {
         if (o.id === orderId) {
@@ -269,75 +321,78 @@ export const ordersService = {
         }
         return o
       })
-      saveMockOrders(updatedList)
+      saveLocalOrders(updatedList)
       return newItem
     }
-
-    const { data, error } = await supabase
-      .from('order_items')
-      .insert({ order_id: orderId, ...item })
-      .select()
-      .single()
-    if (error) throw error
-    return data
   },
 
   async updateOrderItem(id, updates) {
-    if (id?.startsWith('item-demo-') || !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes('placeholder')) {
-      const orders = getMockOrders()
+    try {
+      const { data, error } = await supabase
+        .from('order_items')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+      if (error) throw error
+      return data
+    } catch (err) {
+      console.warn('updateOrderItem Supabase error:', err)
+      const orders = getLocalOrders()
       const updatedList = orders.map(o => {
         const items = (o.order_items || []).map(it => it.id === id ? { ...it, ...updates } : it)
         return { ...o, order_items: items }
       })
-      saveMockOrders(updatedList)
+      saveLocalOrders(updatedList)
       return updates
     }
-
-    const { data, error } = await supabase
-      .from('order_items')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single()
-    if (error) throw error
-    return data
   },
 
   async deleteOrderItem(id) {
-    if (id?.startsWith('item-demo-') || !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes('placeholder')) {
-      const orders = getMockOrders()
+    try {
+      const { error } = await supabase.from('order_items').delete().eq('id', id)
+      if (error) throw error
+    } catch (err) {
+      console.warn('deleteOrderItem Supabase error:', err)
+      const orders = getLocalOrders()
       const updatedList = orders.map(o => {
         const items = (o.order_items || []).filter(it => it.id !== id)
         return { ...o, order_items: items }
       })
-      saveMockOrders(updatedList)
-      return
+      saveLocalOrders(updatedList)
     }
-
-    const { error } = await supabase.from('order_items').delete().eq('id', id)
-    if (error) throw error
   },
 
   async updatePayment(orderId, updates) {
-    if (orderId?.startsWith('ord-demo-') || !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes('placeholder')) {
-      const orders = getMockOrders()
+    try {
+      const { data, error } = await supabase
+        .from('payments')
+        .update(updates)
+        .eq('order_id', orderId)
+        .select()
+        .single()
+      if (error) throw error
+
+      const orders = getLocalOrders()
+      const updatedList = orders.map(o => {
+        if (o.id === orderId) {
+          return { ...o, payment: { ...(o.payment || {}), ...updates, ...data } }
+        }
+        return o
+      })
+      saveLocalOrders(updatedList)
+      return data
+    } catch (err) {
+      console.warn('updatePayment Supabase error:', err)
+      const orders = getLocalOrders()
       const updatedList = orders.map(o => {
         if (o.id === orderId) {
           return { ...o, payment: { ...(o.payment || {}), ...updates } }
         }
         return o
       })
-      saveMockOrders(updatedList)
+      saveLocalOrders(updatedList)
       return updates
     }
-
-    const { data, error } = await supabase
-      .from('payments')
-      .update(updates)
-      .eq('order_id', orderId)
-      .select()
-      .single()
-    if (error) throw error
-    return data
   },
 }

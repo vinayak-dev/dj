@@ -4,13 +4,13 @@ import { supabase } from '../lib/supabase'
 const AuthContext = createContext(null)
 
 const DEFAULT_OWNER_USER = {
-  id: 'admin-00000000-0000-0000-0000-000000000000',
+  id: '00000000-0000-0000-0000-000000000000',
   email: 'contact@djartsandcrafts.com',
   user_metadata: { full_name: 'DJ Arts & Crafts' },
 }
 
 const DEFAULT_OWNER_PROFILE = {
-  id: 'admin-00000000-0000-0000-0000-000000000000',
+  id: '00000000-0000-0000-0000-000000000000',
   full_name: 'DJ Arts & Crafts',
   role: 'Store Owner',
   plan: 'Pro',

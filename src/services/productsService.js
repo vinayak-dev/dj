@@ -247,26 +247,67 @@ function saveMockProducts(products) {
 
 export const productsService = {
   async getAll(userId) {
-    if (userId?.startsWith('admin-') || !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes('placeholder')) {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('name')
+      if (error) throw error
+
+      if (data && data.length > 0) {
+        saveMockProducts(data)
+        return data
+      }
+
+      // If empty in Supabase, seed the catalog
+      try {
+        const toSeed = DJ_CATALOG_PRODUCTS.map(p => ({
+          name: p.name,
+          price: p.price,
+          category: p.category || '',
+        }))
+        const { data: seeded, error: seedErr } = await supabase
+          .from('products')
+          .insert(toSeed)
+          .select()
+        if (!seedErr && seeded?.length) {
+          saveMockProducts(seeded)
+          return seeded
+        }
+      } catch (sErr) {
+        console.warn('Catalog seed error:', sErr)
+      }
+
+      return getMockProducts()
+    } catch (err) {
+      console.warn('Supabase products getAll failed, using local fallback:', err)
       return getMockProducts()
     }
-
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .eq('user_id', userId)
-      .order('name')
-    if (error) throw error
-    return data
   },
 
   async create(userId, productData) {
-    if (userId?.startsWith('admin-') || !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes('placeholder')) {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .insert({
+          name: productData.name,
+          price: Number(productData.price) || 0,
+          category: productData.category || '',
+        })
+        .select()
+        .single()
+      if (error) throw error
+
+      const prods = getMockProducts()
+      saveMockProducts([data, ...prods])
+      return data
+    } catch (err) {
+      console.warn('Supabase product create fallback:', err)
       const prods = getMockProducts()
       const newProd = {
         id: `prod-demo-${Date.now()}`,
         name: productData.name,
-        price: Number(productData.price),
+        price: Number(productData.price) || 0,
         category: productData.category || '',
         created_at: new Date().toISOString(),
       }
@@ -274,18 +315,26 @@ export const productsService = {
       saveMockProducts(updatedList)
       return newProd
     }
-
-    const { data, error } = await supabase
-      .from('products')
-      .insert({ user_id: userId, ...productData })
-      .select()
-      .single()
-    if (error) throw error
-    return data
   },
 
   async update(id, updates) {
-    if (id?.startsWith('prod-demo-') || !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes('placeholder')) {
+    try {
+      const cleanUpdates = { ...updates }
+      if (cleanUpdates.price !== undefined) cleanUpdates.price = Number(cleanUpdates.price) || 0
+      const { data, error } = await supabase
+        .from('products')
+        .update(cleanUpdates)
+        .eq('id', id)
+        .select()
+        .single()
+      if (error) throw error
+
+      const prods = getMockProducts()
+      const updatedList = prods.map(p => p.id === id ? { ...p, ...updates, ...data } : p)
+      saveMockProducts(updatedList)
+      return data
+    } catch (err) {
+      console.warn('Supabase product update fallback:', err)
       const prods = getMockProducts()
       let updatedProd = null
       const updatedList = prods.map(p => {
@@ -298,26 +347,17 @@ export const productsService = {
       saveMockProducts(updatedList)
       return updatedProd || updates
     }
-
-    const { data, error } = await supabase
-      .from('products')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single()
-    if (error) throw error
-    return data
   },
 
   async delete(id) {
-    if (id?.startsWith('prod-demo-') || !import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes('placeholder')) {
-      const prods = getMockProducts()
-      const updatedList = prods.filter(p => p.id !== id)
-      saveMockProducts(updatedList)
-      return
+    try {
+      const { error } = await supabase.from('products').delete().eq('id', id)
+      if (error) throw error
+    } catch (err) {
+      console.warn('Supabase product delete fallback:', err)
     }
-
-    const { error } = await supabase.from('products').delete().eq('id', id)
-    if (error) throw error
+    const prods = getMockProducts()
+    const updatedList = prods.filter(p => p.id !== id)
+    saveMockProducts(updatedList)
   },
 }

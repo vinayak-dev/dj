@@ -1,4 +1,5 @@
 // DJ Arts & Crafts Team Service with persistence
+import { supabase } from '../lib/supabase'
 
 const STORAGE_KEY = 'h4b_mock_team_members_v2'
 
@@ -86,15 +87,69 @@ function saveStoredTeam(team) {
 
 export const teamService = {
   async getAll() {
+    try {
+      const { data, error } = await supabase
+        .from('team')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (!error && data && data.length > 0) {
+        const formatted = data.map(m => ({ ...m, role: normalizeRole(m.role) }))
+        saveStoredTeam(formatted)
+        return formatted
+      }
+
+      // If empty in Supabase, seed defaults
+      if (!error && (!data || data.length === 0)) {
+        try {
+          const seeds = DEFAULT_TEAM.map(m => ({
+            name: m.name,
+            role: m.role,
+            email: m.email,
+            phone: m.phone,
+            status: m.status,
+            assigned_orders: m.assigned_orders,
+          }))
+          const { data: inserted } = await supabase.from('team').insert(seeds).select()
+          if (inserted?.length) {
+            saveStoredTeam(inserted)
+            return inserted
+          }
+        } catch (sErr) {}
+      }
+    } catch (err) {
+      console.warn('Team fetch from Supabase fallback to local:', err)
+    }
+
     return getStoredTeam()
   },
 
   async create(memberData) {
+    const cleanRole = normalizeRole(memberData.role || 'Staff')
+    try {
+      const newMember = {
+        name: memberData.name.trim(),
+        role: cleanRole,
+        email: memberData.email ? memberData.email.trim() : '',
+        phone: memberData.phone ? memberData.phone.trim() : '',
+        status: memberData.status || 'Active',
+        assigned_orders: 0,
+      }
+      const { data, error } = await supabase.from('team').insert(newMember).select().single()
+      if (!error && data) {
+        const current = getStoredTeam()
+        saveStoredTeam([data, ...current])
+        return data
+      }
+    } catch (err) {
+      console.warn('Create team member in Supabase fallback:', err)
+    }
+
     const current = getStoredTeam()
     const newMember = {
       id: `team-${Date.now()}`,
       name: memberData.name.trim(),
-      role: normalizeRole(memberData.role || 'Staff'),
+      role: cleanRole,
       email: memberData.email ? memberData.email.trim() : '',
       phone: memberData.phone ? memberData.phone.trim() : '',
       status: memberData.status || 'Active',
@@ -107,8 +162,12 @@ export const teamService = {
   },
 
   async updateRole(id, newRole) {
-    const current = getStoredTeam()
     const cleanRole = normalizeRole(newRole)
+    try {
+      await supabase.from('team').update({ role: cleanRole }).eq('id', id)
+    } catch (err) {}
+
+    const current = getStoredTeam()
     let updatedMember = null
     const updated = current.map(m => {
       if (m.id === id) {
@@ -122,14 +181,19 @@ export const teamService = {
   },
 
   async update(id, updates) {
+    const cleanRole = updates.role ? normalizeRole(updates.role) : undefined
+    const cleanUpdates = { ...updates, ...(cleanRole ? { role: cleanRole } : {}) }
+    try {
+      await supabase.from('team').update(cleanUpdates).eq('id', id)
+    } catch (err) {}
+
     const current = getStoredTeam()
     let updatedMember = null
     const updated = current.map(m => {
       if (m.id === id) {
         updatedMember = {
           ...m,
-          ...updates,
-          role: updates.role ? normalizeRole(updates.role) : m.role
+          ...cleanUpdates,
         }
         return updatedMember
       }
@@ -140,6 +204,10 @@ export const teamService = {
   },
 
   async delete(id) {
+    try {
+      await supabase.from('team').delete().eq('id', id)
+    } catch (err) {}
+
     const current = getStoredTeam()
     const updated = current.filter(m => m.id !== id)
     saveStoredTeam(updated)

@@ -1,45 +1,17 @@
 -- ============================================================
--- HandForBrand Dashboard — Supabase Schema
--- Run this in the Supabase SQL Editor
+-- DJ Arts & Crafts Dashboard — Supabase Schema & Permissions
+-- Run this in the Supabase SQL Editor: https://app.supabase.com
 -- ============================================================
 
 -- Enable UUID extension
 create extension if not exists "uuid-ossp";
 
--- ── profiles ────────────────────────────────────────────────
-create table if not exists public.profiles (
-  id          uuid primary key references auth.users(id) on delete cascade,
-  full_name   text,
-  role        text default 'Owner',
-  plan        text default 'Free plan',
-  business_name text,
-  avatar_url  text,
-  created_at  timestamptz default now()
-);
+-- ── 1. Create or update tables ──────────────────────────────
 
--- Auto-create profile on signup
-create or replace function public.handle_new_user()
-returns trigger as $$
-begin
-  insert into public.profiles (id, full_name)
-  values (
-    new.id,
-    coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1))
-  )
-  on conflict (id) do nothing;
-  return new;
-end;
-$$ language plpgsql security definer;
-
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute procedure public.handle_new_user();
-
--- ── customers ────────────────────────────────────────────────
+-- customers
 create table if not exists public.customers (
   id         uuid primary key default uuid_generate_v4(),
-  user_id    uuid not null references auth.users(id) on delete cascade,
+  user_id    uuid,
   name       text not null,
   phone      text,
   email      text,
@@ -48,20 +20,20 @@ create table if not exists public.customers (
   created_at timestamptz default now()
 );
 
--- ── products ─────────────────────────────────────────────────
+-- products
 create table if not exists public.products (
   id         uuid primary key default uuid_generate_v4(),
-  user_id    uuid not null references auth.users(id) on delete cascade,
+  user_id    uuid,
   name       text not null,
   price      numeric(12,2) not null default 0,
   category   text,
   created_at timestamptz default now()
 );
 
--- ── orders ───────────────────────────────────────────────────
+-- orders
 create table if not exists public.orders (
   id          uuid primary key default uuid_generate_v4(),
-  user_id     uuid not null references auth.users(id) on delete cascade,
+  user_id     uuid,
   order_no    text not null,
   customer_id uuid references public.customers(id) on delete set null,
   progress    text not null default 'Order Placed',
@@ -73,7 +45,7 @@ create table if not exists public.orders (
   created_at  timestamptz default now()
 );
 
--- ── order_items ───────────────────────────────────────────────
+-- order_items
 create table if not exists public.order_items (
   id           uuid primary key default uuid_generate_v4(),
   order_id     uuid not null references public.orders(id) on delete cascade,
@@ -84,7 +56,7 @@ create table if not exists public.order_items (
   created_at   timestamptz default now()
 );
 
--- ── payments ─────────────────────────────────────────────────
+-- payments
 create table if not exists public.payments (
   id                 uuid primary key default uuid_generate_v4(),
   order_id           uuid not null references public.orders(id) on delete cascade,
@@ -96,49 +68,41 @@ create table if not exists public.payments (
   created_at         timestamptz default now()
 );
 
--- ============================================================
--- ROW LEVEL SECURITY
--- ============================================================
+-- team
+create table if not exists public.team (
+  id              uuid primary key default uuid_generate_v4(),
+  name            text not null,
+  role            text not null default 'Staff',
+  email           text,
+  phone           text,
+  status          text default 'Active',
+  assigned_orders int default 0,
+  created_at      timestamptz default now()
+);
 
-alter table public.profiles    enable row level security;
-alter table public.customers   enable row level security;
-alter table public.products    enable row level security;
-alter table public.orders      enable row level security;
-alter table public.order_items enable row level security;
-alter table public.payments    enable row level security;
+-- ── 2. Allow direct access (No email login required) ────────
 
--- profiles: users can only read/write their own profile
-create policy "profiles: own" on public.profiles
-  for all using (auth.uid() = id) with check (auth.uid() = id);
+-- Drop old foreign key constraints on auth.users if they exist
+alter table public.orders alter column user_id drop not null;
+alter table public.customers alter column user_id drop not null;
+alter table public.products alter column user_id drop not null;
 
--- customers: scoped to user_id
-create policy "customers: own" on public.customers
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+alter table public.orders drop constraint if exists orders_user_id_fkey;
+alter table public.customers drop constraint if exists customers_user_id_fkey;
+alter table public.products drop constraint if exists products_user_id_fkey;
 
--- products: scoped to user_id
-create policy "products: own" on public.products
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+-- Disable Row Level Security so anon client can store & retrieve orders
+alter table public.orders disable row level security;
+alter table public.customers disable row level security;
+alter table public.products disable row level security;
+alter table public.order_items disable row level security;
+alter table public.payments disable row level security;
+alter table public.team disable row level security;
 
--- orders: scoped to user_id
-create policy "orders: own" on public.orders
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
--- order_items: accessible if the parent order belongs to the user
-create policy "order_items: own via orders" on public.order_items
-  for all using (
-    exists (
-      select 1 from public.orders o
-      where o.id = order_items.order_id
-        and o.user_id = auth.uid()
-    )
-  );
-
--- payments: accessible if the parent order belongs to the user
-create policy "payments: own via orders" on public.payments
-  for all using (
-    exists (
-      select 1 from public.orders o
-      where o.id = payments.order_id
-        and o.user_id = auth.uid()
-    )
-  );
+-- Grant permissions to public (anon & authenticated roles)
+grant all on public.orders to anon, authenticated;
+grant all on public.customers to anon, authenticated;
+grant all on public.products to anon, authenticated;
+grant all on public.order_items to anon, authenticated;
+grant all on public.payments to anon, authenticated;
+grant all on public.team to anon, authenticated;
